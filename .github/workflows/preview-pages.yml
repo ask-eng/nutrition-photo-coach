@@ -1,0 +1,72 @@
+name: Controlled Pages Preview
+on:
+  push:
+    branches: ['dev/mvp-v0.1-task002']
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'vitest.config.ts'
+      - 'tsconfig.json'
+      - 'package*.json'
+      - '.github/workflows/preview-pages.yml'
+permissions:
+  contents: read
+concurrency:
+  group: nutrition-photo-coach-preview
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/dev/mvp-v0.1-task002'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PWA_BASE_PATH: /nutrition-photo-coach/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000
+      - run: npm run test:core
+      - run: npx --no-install tsc --noEmit
+      - run: npm test -- --reporter=verbose
+      - run: npm run build
+      - run: node scripts/verify-pwa.mjs
+      - run: node scripts/scan-preview.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/dev/mvp-v0.1-task002'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Verify Pages configuration
+        uses: actions/configure-pages@v5
+      - name: Deploy verified development preview
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify published HTTPS assets
+        run: node scripts/verify-preview.mjs '${{ steps.deployment.outputs.page_url }}'

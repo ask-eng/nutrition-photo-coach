@@ -4,6 +4,7 @@ import { isValidDate, localDate } from '../src/domain/dates.ts';
 import type { FoodItem, Goals, Meal } from '../src/domain/types.ts';
 import { mockProvider } from '../src/analysis/mock.ts';
 import { preparePhoto } from '../src/photos/process.ts';
+import { deploymentBase } from '../src/domain/deployment.ts';
 
 export const food: FoodItem = { id: 'food-1', name: '雞肉餐', grams: 100, calories: 500, protein: 30, carbs: 50, fat: 20 };
 export const meal: Meal = { id: 'meal-1', date: '2026-10-13', time: '12:00', timezone: 'Asia/Taipei', type: 'lunch', items: [food], source: 'manual', createdAt: '2026-10-13T04:00:00Z', updatedAt: '2026-10-13T04:00:00Z' };
@@ -11,6 +12,9 @@ const goal: Goals = { effectiveDate: '2026-10-13', mode: 'gain', calories: 2200,
 
 // Shared real assertions: Vitest and dependency-free Node run the SAME core cases.
 export const coreCases: Array<[string, () => void | Promise<void>]> = [
+  ['Preview 路徑保留專案子目錄與結尾斜線', () => assert.equal(deploymentBase('/nutrition-photo-coach/'), '/nutrition-photo-coach/')],
+  ['本機部署仍使用根目錄', () => assert.equal(deploymentBase(), '/')],
+  ['拒絕網址、相對路徑及逃逸的部署範圍', () => { for (const base of ['nutrition-photo-coach/', '/nutrition-photo-coach', '/../', '//', 'https://example.com/']) assert.throws(() => deploymentBase(base)); }],
   ['兩餐加總四項營養', () => assert.deepEqual(sumNutrition([food, food]), { calories: 1000, protein: 60, carbs: 100, fat: 40 })],
   ['空日回傳零', () => assert.deepEqual(sumNutrition([]), { calories: 0, protein: 0, carbs: 0, fat: 0 })],
   ['重量 100→150 等比例換算', () => assert.deepEqual(scaleItem(food, 150), { ...food, grams: 150, calories: 750, protein: 45, carbs: 75, fat: 30 })],

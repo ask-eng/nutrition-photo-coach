@@ -79,7 +79,7 @@ export default function App({ db = database }: { db?: NutritionDatabase }) {
           <div className="space-y-3">{meals.map(meal => <MealCard key={meal.id} meal={meal} onEdit={() => { if (!unavailable) { setNotice(''); setEditor({ initial: meal }); } }} onDelete={() => { if (!unavailable) setDeleteId(meal.id); }} />)}</div>
           <InstallPrompt />
         </>}
-        <section className="privacy-note"><p>資料保存在此瀏覽器，清除網站資料可能造成紀錄遺失。請定期備份；照片辨識目前為固定示範結果。</p><button className="text-button" disabled={unavailable} onClick={exportData}>匯出飲食紀錄備份</button><a className="text-button" href="/third-party-notices.txt" target="_blank" rel="noreferrer">開源授權與來源</a></section>
+        <section className="privacy-note"><p>資料保存在此瀏覽器，清除網站資料可能造成紀錄遺失。請定期備份；照片辨識目前為固定示範結果。</p><button className="text-button" disabled={unavailable} onClick={exportData}>匯出飲食紀錄備份</button><a className="text-button" href={`${import.meta.env.BASE_URL}third-party-notices.txt`} target="_blank" rel="noreferrer">開源授權與來源</a></section>
       </>}
     </main>
     <nav className="bottom-nav" aria-label="主要導覽">{([['today', '今日', '◷'], ['history', '歷史', '▤'], ['goals', '目標', '◎']] as const).map(([key, label, symbol]) => <button key={key} disabled={Boolean(editor)} aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'active' : ''} onClick={() => { setTab(key); setNotice(''); }}><span aria-hidden="true">{symbol}</span>{label}</button>)}</nav>
