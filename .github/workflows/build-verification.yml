@@ -1,0 +1,43 @@
+name: Build verification
+on:
+  push:
+    branches: ['dev/mvp-v0.1-task002']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies and generate lockfile
+        id: install
+        run: npm install --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000
+      - name: Core tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:core
+      - name: TypeScript
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npx --no-install tsc --noEmit
+      - name: Vitest
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test -- --reporter=verbose
+      - name: Production build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run build
+      - name: Verify generated PWA
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node scripts/verify-pwa.mjs
+      - name: Preserve lockfile and build artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-verification
+          retention-days: 7
+          path: |
+            package-lock.json
+            dist/
