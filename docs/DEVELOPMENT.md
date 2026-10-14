@@ -6,14 +6,14 @@
 需求 Node.js >= 22.12（本次原生核心測試使用 Node.js 24.19）。
 
 ```sh
-npm install
+npm ci
 npm run test:core
 npm test
 npm run build
 npm run dev
 ```
 
-目前未產生 package-lock.json：套件來源受 proxy 阻擋，不能虛構鎖檔。首次成功安裝後應審查並提交鎖檔，再使用 npm ci。
+Task #003 已透過 GitHub Actions 的實際 npm install 產生 package-lock.json 並提交；接續安裝使用 npm ci。雲端工作區的 proxy 限制仍存在，但不影響 GitHub Actions runner。
 
 `npm run dev` 僅綁定 localhost，不公開服務。PWA Service Worker 在開發模式關閉；需先成功 build，再執行 `npm run preview` 驗證建置產物。
 

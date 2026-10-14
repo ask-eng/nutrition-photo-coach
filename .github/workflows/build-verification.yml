@@ -13,9 +13,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install dependencies and generate lockfile
+      - name: Install locked dependencies
         id: install
-        run: npm install --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000
+        run: npm ci --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000
       - name: Core tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run test:core
@@ -32,15 +32,6 @@ jobs:
       - name: Verify generated PWA
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node scripts/verify-pwa.mjs
-      - name: Export generated lockfile for connector recovery
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: |
-          node --input-type=commonjs - <<'NODE'
-          const fs = require('node:fs');
-          const zlib = require('node:zlib');
-          const data = zlib.gzipSync(fs.readFileSync('package-lock.json')).toString('base64');
-          for (let i = 0; i < data.length; i += 4000) console.log('LOCKFILE_CHUNK:' + data.slice(i, i + 4000));
-          NODE
       - name: Preserve lockfile and build artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4

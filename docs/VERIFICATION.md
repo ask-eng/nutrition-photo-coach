@@ -1,5 +1,7 @@
 # Implementation Task #002 驗證結果
 
+> 更新：Task #003 已在 GitHub Actions 成功完成安裝、TypeScript、Vitest 36／36、Production Build 與 PWA 產物檢查。以下是 Task #002 的歷史紀錄，最新結果見 TASK003_BUILD_VERIFICATION.md；Android 實機仍待驗收。
+
 日期：2026-10-13。這是原始碼交付，尚未確認完整 App 可執行或 Android 可安裝。
 
 ## 實際已執行
