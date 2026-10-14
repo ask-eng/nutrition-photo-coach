@@ -32,6 +32,15 @@ jobs:
       - name: Verify generated PWA
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node scripts/verify-pwa.mjs
+      - name: Export generated lockfile for connector recovery
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          node --input-type=commonjs - <<'NODE'
+          const fs = require('node:fs');
+          const zlib = require('node:zlib');
+          const data = zlib.gzipSync(fs.readFileSync('package-lock.json')).toString('base64');
+          for (let i = 0; i < data.length; i += 4000) console.log('LOCKFILE_CHUNK:' + data.slice(i, i + 4000));
+          NODE
       - name: Preserve lockfile and build artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
