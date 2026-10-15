@@ -74,7 +74,7 @@ test('衝突反覆更新後只載入最新版本，恢復保存', async () => {
   expect(valueInput('calories').value).toBe('2450');
   expect(screen.queryByRole('alert')).toBeNull();
   await user.click(saveButton());
-  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ calories: 2450, mode: 'gain' })));
+  await waitFor(() => expect(save.mock.calls[0]?.[0]).toMatchObject({ calories: 2450, mode: 'gain' }));
 });
 
 test('僅來源物件參照變更保留草稿不衝突', async () => {
