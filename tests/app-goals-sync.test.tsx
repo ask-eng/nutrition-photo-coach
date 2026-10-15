@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import App from '../src/App.tsx';
 import { NutritionDatabase, saveGoals } from '../src/data/database.ts';
 import { localDate } from '../src/domain/dates.ts';
@@ -50,4 +50,55 @@ test('App 整合：乾淨表單在新生效日期儲存後跟隨最新值', asyn
   await waitFor(() => expect(calories().value).toBe('2550'));
   expect(screen.getByRole('button', { name: '增肌' }).getAttribute('aria-pressed')).toBe('true');
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('App 導覽：有草稿時取消離開，草稿與目標分頁保持不變', async () => {
+  const user = userEvent.setup();
+  const db = makeDb();
+  await saveGoals(earlier(), db);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<App db={db} />);
+  await user.click(screen.getByRole('button', { name: '目標' }));
+  const calories = () => screen.getByLabelText('每日熱量目標（kcal）') as HTMLInputElement;
+  await waitFor(() => expect(calories().value).toBe('1800'));
+  await user.clear(calories());
+  await user.type(calories(), '1933');
+  await user.click(screen.getByRole('button', { name: '今日' }));
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(calories().value).toBe('1933');
+  expect(screen.getByRole('button', { name: '目標' }).getAttribute('aria-current')).toBe('page');
+  confirm.mockRestore();
+});
+
+test('App 導覽：明確確認捨棄後離開，回來從已保存資料初始化', async () => {
+  const user = userEvent.setup();
+  const db = makeDb();
+  await saveGoals(earlier(), db);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<App db={db} />);
+  await user.click(screen.getByRole('button', { name: '目標' }));
+  const calories = () => screen.getByLabelText('每日熱量目標（kcal）') as HTMLInputElement;
+  await waitFor(() => expect(calories().value).toBe('1800'));
+  await user.clear(calories());
+  await user.type(calories(), '1933');
+  await user.click(screen.getByRole('button', { name: '今日' }));
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('button', { name: '今日' }).getAttribute('aria-current')).toBe('page');
+  await user.click(screen.getByRole('button', { name: '目標' }));
+  await waitFor(() => expect(calories().value).toBe('1800'));
+  confirm.mockRestore();
+});
+
+test('App 導覽：乾淨表單可直接離開不要求確認', async () => {
+  const user = userEvent.setup();
+  const db = makeDb();
+  await saveGoals(earlier(), db);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<App db={db} />);
+  await user.click(screen.getByRole('button', { name: '目標' }));
+  await waitFor(() => expect((screen.getByLabelText('每日熱量目標（kcal）') as HTMLInputElement).value).toBe('1800'));
+  await user.click(screen.getByRole('button', { name: '今日' }));
+  expect(confirm).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: '今日' }).getAttribute('aria-current')).toBe('page');
+  confirm.mockRestore();
 });

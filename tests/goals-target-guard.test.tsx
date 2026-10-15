@@ -113,3 +113,28 @@ test('App：若編輯期間有人新增原先不存在的未來目標，保存�
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('原草稿未被寫入'));
   expect((await db.goals.get(futureDate))?.calories).toBe(2400);
 });
+
+test('衝突後按載入最新會重新讀取該日期再次變動的內容', async () => {
+  const db = makeDb();
+  await saveGoals(goal('2020-01-01', 1800), db);
+  await saveGoals(goal(futureDate, 2100), db);
+  const user = userEvent.setup();
+  render(<App db={db} />);
+  await user.click(screen.getByRole('button', { name: '目標' }));
+  const calories = () => screen.getByLabelText('每日熱量目標（kcal）') as HTMLInputElement;
+  await waitFor(() => expect(calories().value).toBe('1800'));
+  fireEvent.change(screen.getByLabelText('目標生效日期'), { target: { value: futureDate } });
+  await user.clear(calories());
+  await user.type(calories(), '2200');
+  await user.click(screen.getByRole('button', { name: '確認覆蓋此日期目標' }));
+  await saveGoals(goal(futureDate, 2500), db);
+  await user.click(screen.getByRole('button', { name: '保存目標' }));
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('原草稿未被寫入'));
+  // Error captured 2500; a second writer advances the target to 2700.
+  await saveGoals(goal(futureDate, 2700), db);
+  await user.click(screen.getByRole('button', { name: '載入最新資料（捨棄未儲存修改）' }));
+  await waitFor(() => expect(calories().value).toBe('2700'));
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect((await db.goals.get(futureDate))?.calories).toBe(2700);
+  expect((screen.getByRole('button', { name: '保存目標' }) as HTMLButtonElement).disabled).toBe(true);
+});
