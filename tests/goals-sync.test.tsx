@@ -100,7 +100,8 @@ test('保存中自己的資料先回流不產生衝突、防止重複提交', as
   const save = vi.fn((_goal: Goals) => pending.promise);
   const { rerender } = render(<GoalsForm goal={makeGoal()} date={date} onSave={save} />);
   await edit(user, '2200');
-  fireEvent.submit(saveButton().closest('form')!); fireEvent.submit(saveButton().closest('form')!);
+  const form = saveButton().closest('form')!;
+  fireEvent.submit(form); fireEvent.submit(form);
   expect(save).toHaveBeenCalledTimes(1);
   rerender(<GoalsForm goal={makeGoal({ calories: 2200 })} date={date} onSave={save} />);
   expect(screen.queryByRole('alert')).toBeNull();
