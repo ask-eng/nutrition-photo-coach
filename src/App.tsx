@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
-import { database, deleteMeal, loadSnapshot, NutritionDatabase, saveGoals, saveMeal } from './data/database.ts';
+import { database, deleteMeal, loadSnapshot, NutritionDatabase, saveGoalsIfUnchanged, saveMeal } from './data/database.ts';
 import { dateLabel, isValidDate, localDate } from './domain/dates.ts';
 import { dailyTotals, goalForDate } from './domain/nutrition.ts';
 import type { Meal, Snapshot } from './domain/types.ts';
@@ -23,6 +23,18 @@ export default function App({ db = database }: { db?: NutritionDatabase }) {
   const [deleteId, setDeleteId] = useState<string>();
   const [deleting, setDeleting] = useState(false); const deleteLock = useRef(false);
   const [notice, setNotice] = useState('');
+  const [goalsDirty, setGoalsDirty] = useState(false);
+  const [goalsBusy, setGoalsBusy] = useState(false);
+  function navigate(next: Tab) {
+    if (next === tab) return;
+    if (tab === 'goals') {
+      if (goalsBusy) return;
+      if (goalsDirty && !window.confirm('目標尚有未保存的修改，離開將捨棄草稿。確定離開嗎？')) return;
+      setGoalsDirty(false);
+    }
+    setTab(next);
+    setNotice('');
+  }
   useEffect(() => {
     setLoading(true);
     const subscription = liveQuery(() => loadSnapshot(db)).subscribe({
@@ -69,7 +81,10 @@ export default function App({ db = database }: { db?: NutritionDatabase }) {
       {editor ? <MealEditor initial={editor.initial} date={validDate ? date : today} onClose={() => setEditor(null)} onSave={async meal => {
         await saveMeal(meal, db); if (tab === 'history') setHistoryDate(meal.date); setEditor(null); setNotice('餐點已保存在此裝置。');
       }} /> : <>
-        {tab === 'goals' ? <GoalsForm key={`${today}-${goalForDate(snapshot.goals, today)?.effectiveDate ?? 'none'}`} goal={goalForDate(snapshot.goals, today)} date={today} onSave={async goal => { if (unavailable) throw new Error('儲存不可用'); await saveGoals(goal, db); setNotice('目標已保存，將從生效日期開始套用。'); }} /> : <>
+        {tab === 'goals' ? <GoalsForm goal={goalForDate(snapshot.goals, today)} goals={snapshot.goals} date={today}
+          onDirtyChange={setGoalsDirty} onBusyChange={setGoalsBusy}
+          loadTargetGoal={async effectiveDate => db.goals.get(effectiveDate)}
+          onSave={async (goal, expected) => { if (unavailable) throw new Error('儲存不可用'); await saveGoalsIfUnchanged(goal, expected, db); setNotice('目標已保存，將從生效日期開始套用。'); }} /> : <>
           <div className="date-heading"><div><p className="eyebrow">{tab === 'today' ? '今天的飲食紀錄' : '回顧每一天'}</p><h2>{validDate ? dateLabel(date) : '請選擇有效日期'}</h2></div><span className="muted text-sm">{meals.length} 餐</span></div>
           {tab === 'history' && <section className="panel compact mb-4"><label>查詢日期<input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} /></label>{pastDates.length > 0 && <div className="date-chips" aria-label="有紀錄的日期">{pastDates.map(day => <button key={day} aria-pressed={day === historyDate} className={day === historyDate ? 'selected' : ''} onClick={() => setHistoryDate(day)}>{day.slice(5)}</button>)}</div>}</section>}
           <DailySummary totals={totals} goal={goal} />
@@ -82,7 +97,7 @@ export default function App({ db = database }: { db?: NutritionDatabase }) {
         <section className="privacy-note"><p>資料保存在此瀏覽器，清除網站資料可能造成紀錄遺失。請定期備份；照片辨識目前為固定示範結果。</p><button className="text-button" disabled={unavailable} onClick={exportData}>匯出飲食紀錄備份</button><a className="text-button" href={`${import.meta.env.BASE_URL}third-party-notices.txt`} target="_blank" rel="noreferrer">開源授權與來源</a></section>
       </>}
     </main>
-    <nav className="bottom-nav" aria-label="主要導覽">{([['today', '今日', '◷'], ['history', '歷史', '▤'], ['goals', '目標', '◎']] as const).map(([key, label, symbol]) => <button key={key} disabled={Boolean(editor)} aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'active' : ''} onClick={() => { setTab(key); setNotice(''); }}><span aria-hidden="true">{symbol}</span>{label}</button>)}</nav>
+    <nav className="bottom-nav" aria-label="主要導覽">{([['today', '今日', '◷'], ['history', '歷史', '▤'], ['goals', '目標', '◎']] as const).map(([key, label, symbol]) => <button key={key} disabled={Boolean(editor) || (tab === 'goals' && goalsBusy && key !== 'goals')} aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'active' : ''} onClick={() => navigate(key)}><span aria-hidden="true">{symbol}</span>{label}</button>)}</nav>
     {deleteId && <DeleteDialog busy={deleting} onCancel={() => setDeleteId(undefined)} onConfirm={confirmDelete} />}
   </div>;
 }

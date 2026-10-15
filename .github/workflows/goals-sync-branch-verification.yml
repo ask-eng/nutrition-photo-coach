@@ -1,0 +1,29 @@
+name: Goals sync branch verification (no deployment)
+on:
+  push:
+    branches: ['feature/goals-sync-guard-20261015']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000
+      - name: Core regression tests
+        run: npm run test:core
+      - name: TypeScript full project
+        run: npx --no-install tsc --noEmit
+      - name: Vitest
+        run: npm test -- --reporter=verbose
+      - name: Production build only (never publish)
+        run: npm run build
+      - name: Validate generated PWA only (never publish)
+        run: node scripts/verify-pwa.mjs
