@@ -5,7 +5,7 @@ import type { Goals, Meal, Snapshot } from '../domain/types.ts';
 export class NutritionDatabase extends Dexie {
   meals!: Table<Meal, string>;
   goals!: Table<Goals, string>;
-  constructor(name = 'nutrition-photo-coach-v1') {
+  constructor(name = 'nutrition-photo-coach-goals-preview-v1') {
     super(name);
     // Additive schema only. No destructive upgrade or automatic seed records.
     this.version(1).stores({ meals: 'id, date, updatedAt', goals: 'effectiveDate' });

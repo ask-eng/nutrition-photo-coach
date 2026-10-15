@@ -1,0 +1,41 @@
+name: Isolated goals sync QA bundle (no deployment)
+on:
+  push:
+    branches: ['preview/goals-sync-qa-20261015']
+permissions:
+  contents: read
+jobs:
+  verify-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PWA_BASE_PATH: /
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund --fetch-retries=2 --fetch-timeout=45000
+      - name: Core tests
+        run: npm run test:core
+      - name: TypeScript strict
+        run: npx --no-install tsc --noEmit
+      - name: Full Vitest regression
+        run: npm test -- --reporter=verbose
+      - name: Build isolated QA PWA (no deployment)
+        run: npm run build
+      - name: Verify PWA
+        run: node scripts/verify-pwa.mjs
+      - name: Scan generated bundle
+        run: node scripts/scan-preview.mjs
+      - name: Verify preview isolation
+        run: node scripts/verify-isolated-preview.mjs
+      - name: Preserve validated bundle for later independent-origin hosting
+        uses: actions/upload-artifact@v4
+        with:
+          name: goals-sync-qa-bundle
+          path: dist/
+          retention-days: 7

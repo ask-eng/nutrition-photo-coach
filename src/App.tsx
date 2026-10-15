@@ -73,8 +73,8 @@ export default function App({ db = database }: { db?: NutritionDatabase }) {
   const unavailable = loading || Boolean(storageError);
   return <div className="app-shell">
     <a className="skip-link" href="#main">跳到主要內容</a>
-    <header className="app-header"><div className="brand-icon" aria-hidden="true">♧</div><div><h1>餐照營養教練</h1><p>好好吃飯，慢慢進步</p></div><span className="prototype-tag">示範版</span></header>
-    <main id="main">
+    <header className="app-header"><div className="brand-icon" aria-hidden="true">♧</div><div><h1>餐照營養教練</h1><p>好好吃飯，慢慢進步</p></div><span className="prototype-tag">隔離測試版</span></header>
+    <main id="main"><p role="note" className="notice mb-4">此為隔離測試版：請只輸入虛構測試資料，勿上傳真實照片或個人飲食紀錄。此測試版不會讀取正式版的飲食資料。</p>
       {notice && <div role="status" className="notice mb-4">{notice}<button className="text-button" aria-label="關閉訊息" onClick={() => setNotice('')}>關閉</button></div>}
       {storageError && <div role="alert" className="error-box">{storageError}<button className="text-button" onClick={() => setReloadKey(n => n + 1)}>重新讀取</button></div>}
       {loading && <p role="status" className="muted">正在讀取本機紀錄…</p>}
