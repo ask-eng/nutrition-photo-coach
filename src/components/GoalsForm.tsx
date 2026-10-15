@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { GoalsWriteConflictError } from '../data/database.ts';
 import { nutrientKeys } from '../domain/nutrition.ts';
 import { goalsSchema } from '../domain/schemas.ts';
@@ -26,6 +26,9 @@ type Props = {
   goals?: readonly Goals[];
   date: string;
   onSave: (goal: Goals, expectedAtTarget?: Goals) => Promise<void>;
+  loadTargetGoal?: (date: string) => Promise<Goals | undefined>;
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 function targetFor(goals: readonly Goals[] | undefined, selected: Goals | undefined, target: string): Goals | undefined {
   return goals?.find(g => g.effectiveDate === target) ??
@@ -90,14 +93,18 @@ function reconcile(state: Editor, goal: Goals | undefined, date: string, goals?:
   };
 }
 
-export function GoalsForm({ goal, goals, date, onSave }: Props) {
+export function GoalsForm({ goal, goals, date, onSave, loadTargetGoal, onDirtyChange, onBusyChange }: Props) {
   const [editor, setEditor] = useState<Editor>(() => initial(goal, date, goals));
   const lock = useRef(false);
+  const [refreshing, setRefreshing] = useState(false);
   const incoming = sourceKey(goal, date);
   // Guarded render-phase sync prevents committing a stale form with new props.
   if (incoming !== editor.sourceKey) setEditor(current => reconcile(current, goal, date, goals));
   const { effectiveDate, mode, values } = editor.draft;
   const busy = editor.pending !== null;
+  const dirty = !sameDraft(editor.draft, editor.baseline) || editor.conflict;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy || refreshing); }, [busy, refreshing, onBusyChange]);
 
   function change(update: (draft: Draft) => Draft) {
     if (lock.current) return;
@@ -115,19 +122,36 @@ export function GoalsForm({ goal, goals, date, onSave }: Props) {
       message: '',
     }));
   }
-  function loadLatest() {
+  async function loadLatest() {
     if (lock.current) return;
     if (editor.targetConflict) {
-      const { date: targetDate, current } = editor.targetConflict;
-      const latest = draftFrom(current, targetDate);
-      setEditor(state => ({
-        ...state, sourceKey: incoming, baseline: latest, draft: latest,
-        targetExpected: current,
-        targetConfirmationRequired: targetDate !== date && Boolean(current),
-        overwriteConfirmed: false,
-        conflict: false, targetConflict: null, pending: null, awaitingEcho: null,
-        message: '已載入此日期的最新目標，尚未保存的修改已捨棄。',
-      }));
+      if (!loadTargetGoal) {
+        setEditor(state => ({ ...state, message: '無法讀取此日期的最新目標，請稍後重試。' }));
+        return;
+      }
+      const targetDate = editor.targetConflict.date;
+      lock.current = true;
+      setRefreshing(true);
+      try {
+        // Reload at click time; later writes remain protected by the transaction.
+        const current = await loadTargetGoal(targetDate);
+        const latest = draftFrom(current, targetDate);
+        setEditor(state => ({
+          ...state, sourceKey: incoming, baseline: latest, draft: latest,
+          targetExpected: current,
+          targetConfirmationRequired: targetDate !== date && Boolean(current),
+          overwriteConfirmed: false,
+          conflict: false, targetConflict: null, pending: null, awaitingEcho: null,
+          message: '已重新讀取此日期的最新目標，尚未保存的修改已捨棄。',
+        }));
+      } catch {
+        setEditor(state => ({
+          ...state, message: '讀取最新目標失敗，草稿已保留，請稍後重試。',
+        }));
+      } finally {
+        setRefreshing(false);
+        lock.current = false;
+      }
       return;
     }
     setEditor({ ...initial(goal, date, goals), message: '已載入最新目標，尚未保存的修改已捨棄。' });
@@ -191,7 +215,7 @@ export function GoalsForm({ goal, goals, date, onSave }: Props) {
   return <section className="panel">
     <p className="eyebrow">依自己的步調</p><h2>設定每日目標</h2>
     <p className="muted mt-2">手動設定您的攝取目標。畫面中的初始數值僅為範例，未保存前不會套用。</p>
-    <form className="mt-5" onSubmit={submit} noValidate><fieldset disabled={busy}>
+    <form className="mt-5" onSubmit={submit} noValidate><fieldset disabled={busy || refreshing}>
       <div className="mode-options">
         <button type="button" aria-pressed={mode === 'gain'} className={mode === 'gain' ? 'selected' : ''} onClick={() => change(draft => ({ ...draft, mode: 'gain' }))}>增肌</button>
         <button type="button" aria-pressed={mode === 'lose'} className={mode === 'lose' ? 'selected' : ''} onClick={() => change(draft => ({ ...draft, mode: 'lose' }))}>減脂</button>
@@ -219,7 +243,7 @@ export function GoalsForm({ goal, goals, date, onSave }: Props) {
         <button type="button" className="text-button" onClick={loadLatest}>載入最新資料（捨棄未儲存修改）</button>
       </div>}
       <p className="hint mt-4">保留以前日期的目標；同一生效日重新保存會更新該日設定。此工具提供記錄與比較，不提供個人化營養處方。</p>
-      <button className="button primary w-full mt-5" type="submit" disabled={busy || editor.conflict || (editor.targetConfirmationRequired && !editor.overwriteConfirmed)}>{busy ? '正在保存…' : '保存目標'}</button>
+      <button className="button primary w-full mt-5" type="submit" disabled={busy || refreshing || editor.conflict || (editor.targetConfirmationRequired && !editor.overwriteConfirmed)}>{busy ? '正在保存…' : '保存目標'}</button>
     </fieldset></form>
     {editor.message && <p role="status" className="notice mt-4">{editor.message}</p>}
   </section>;
