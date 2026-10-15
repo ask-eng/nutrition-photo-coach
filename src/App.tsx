@@ -69,7 +69,7 @@ export default function App({ db = database }: { db?: NutritionDatabase }) {
       {editor ? <MealEditor initial={editor.initial} date={validDate ? date : today} onClose={() => setEditor(null)} onSave={async meal => {
         await saveMeal(meal, db); if (tab === 'history') setHistoryDate(meal.date); setEditor(null); setNotice('餐點已保存在此裝置。');
       }} /> : <>
-        {tab === 'goals' ? <GoalsForm key={`${today}-${goalForDate(snapshot.goals, today)?.effectiveDate ?? 'none'}`} goal={goalForDate(snapshot.goals, today)} date={today} onSave={async goal => { if (unavailable) throw new Error('儲存不可用'); await saveGoals(goal, db); setNotice('目標已保存，將從生效日期開始套用。'); }} /> : <>
+        {tab === 'goals' ? <GoalsForm  goal={goalForDate(snapshot.goals, today)} date={today} onSave={async goal => { if (unavailable) throw new Error('儲存不可用'); await saveGoals(goal, db); setNotice('目標已保存，將從生效日期開始套用。'); }} /> : <>
           <div className="date-heading"><div><p className="eyebrow">{tab === 'today' ? '今天的飲食紀錄' : '回顧每一天'}</p><h2>{validDate ? dateLabel(date) : '請選擇有效日期'}</h2></div><span className="muted text-sm">{meals.length} 餐</span></div>
           {tab === 'history' && <section className="panel compact mb-4"><label>查詢日期<input type="date" value={historyDate} onChange={e => setHistoryDate(e.target.value)} /></label>{pastDates.length > 0 && <div className="date-chips" aria-label="有紀錄的日期">{pastDates.map(day => <button key={day} aria-pressed={day === historyDate} className={day === historyDate ? 'selected' : ''} onClick={() => setHistoryDate(day)}>{day.slice(5)}</button>)}</div>}</section>}
           <DailySummary totals={totals} goal={goal} />
