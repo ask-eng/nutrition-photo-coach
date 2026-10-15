@@ -95,7 +95,7 @@ test('App：未來日期原有目標需確認覆蓋，外部更新後交易拒�
   expect(save.disabled).toBe(true);
   await user.click(screen.getByRole('button', { name: '確認覆蓋此日期目標' }));
   await user.click(save);
-  await waitFor(() => expect((await db.goals.get(futureDate))?.calories).toBe(2500));
+  await waitFor(async () => expect((await db.goals.get(futureDate))?.calories).toBe(2500));
 });
 
 test('App：若編輯期間有人新增原先不存在的未來目標，保存拒絕覆蓋', async () => {
